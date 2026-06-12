@@ -40,10 +40,14 @@ app.add_middleware(
 )
 
 from app.routes.exercises import router as exercises_router  # noqa: E402
+from app.routes.sets import router as sets_router  # noqa: E402
 from app.routes.user_settings import router as settings_router  # noqa: E402
+from app.routes.workout_sessions import router as sessions_router  # noqa: E402
 
 app.include_router(exercises_router, prefix="/api")
 app.include_router(settings_router, prefix="/api")
+app.include_router(sessions_router, prefix="/api")
+app.include_router(sets_router, prefix="/api")
 
 
 if __name__ == "__main__":
