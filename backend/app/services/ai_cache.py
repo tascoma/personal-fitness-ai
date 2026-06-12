@@ -1,13 +1,17 @@
 import hashlib
 import json
+import logging
 from typing import Awaitable, Callable
 
+from fastapi import HTTPException
 from pydantic import BaseModel
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.models import AIOutput
+
+logger = logging.getLogger(__name__)
 
 
 def cache_key(kind: str, payload: object) -> str:
@@ -33,7 +37,16 @@ async def get_or_create(
         if row is not None:
             return json.loads(row.content), True, row.model
 
-    output = await generate()
+    try:
+        output = await generate()
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("AI generation failed for kind=%s", kind)
+        raise HTTPException(
+            status_code=502,
+            detail=f"AI generation failed ({type(exc).__name__}) — check ANTHROPIC_API_KEY in .env",
+        )
     db.add(
         AIOutput(
             kind=kind,
