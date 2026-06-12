@@ -1,4 +1,8 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings
+
+_REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 class Settings(BaseSettings):
@@ -16,7 +20,8 @@ class Settings(BaseSettings):
     anthropic_model: str = "claude-sonnet-4-6"
     log_level: str = "INFO"
 
-    model_config = {"env_file": "../.env"}
+    # Anchored to the repo root so imports work from any working directory.
+    model_config = {"env_file": _REPO_ROOT / ".env"}
 
 
 settings = Settings()
