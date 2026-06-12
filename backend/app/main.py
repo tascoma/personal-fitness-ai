@@ -39,9 +39,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount routers here as they are created, e.g.:
-# from app.routes import items
-# app.include_router(items.router, prefix="/api/items", tags=["items"])
+from app.routes.exercises import router as exercises_router  # noqa: E402
+from app.routes.user_settings import router as settings_router  # noqa: E402
+
+app.include_router(exercises_router, prefix="/api")
+app.include_router(settings_router, prefix="/api")
 
 
 if __name__ == "__main__":
