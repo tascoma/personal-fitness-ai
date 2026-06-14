@@ -58,6 +58,22 @@ export interface ExerciseSeries {
   series: E1RMPoint[]
 }
 
+export interface SummaryStats {
+  total_sessions: number
+  total_tonnage: number
+  training_days: number
+  current_streak_weeks: number
+  weekly_frequency: number
+  this_week_tonnage: number
+  last_week_tonnage: number
+  active_pr_count: number
+  sessions_this_week: number
+}
+
+export interface RecentPR extends PersonalRecord {
+  exercise_name: string
+}
+
 export interface Prediction {
   exercise_id: number
   status: 'ok' | 'insufficient_data' | 'no_positive_trend' | 'no_milestone'
@@ -111,5 +127,13 @@ export interface DigestResponse extends AIEnvelope {
     summary: string
     lift_notes: string[]
     focus_next_week: string
+  }
+}
+
+export interface DashboardResponse extends AIEnvelope {
+  insight: {
+    headline: string
+    highlights: string[]
+    watch_items: string[]
   }
 }
