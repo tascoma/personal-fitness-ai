@@ -1,282 +1,193 @@
 import { useState } from 'react'
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Legend,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
 import { api } from '../api/client'
 import type {
   E1RMPoint,
   Exercise,
-  ExerciseSeries,
   PersonalRecord,
   Prediction,
   TonnageBucket,
-  UserSettings,
 } from '../api/types'
-import { BigNumber } from '../components/BigNumber'
-import { LoadingSkeleton } from '../components/LoadingSkeleton'
+import { BarChart, LineChart } from '../components/charts'
+import { Card, CardHeader, LoadingSkeleton, Pill } from '../components/ui'
+import { useApp } from '../context/app'
 import { useFetch } from '../hooks/useFetch'
-import { displayWeight, formatDate } from '../lib/units'
+import { convertWeight, formatDate } from '../lib/units'
 
-const ACCENT = '#c084fc'
-const GREEN = '#4ade80'
-const GRID = '#2e303a'
-const TEXT = '#9ca3af'
-
-const chartMargin = { top: 4, right: 8, bottom: 0, left: -16 }
+function shortDate(iso: string): string {
+  return new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
 
 export function Progress() {
-  const base = useFetch(async () => {
-    const [exercises, settings] = await Promise.all([
-      api.get<Exercise[]>('/exercises'),
-      api.get<UserSettings>('/settings'),
-    ])
-    return { exercises, settings }
-  })
-
+  const { unit, formula, accent } = useApp()
   const [exerciseId, setExerciseId] = useState<number | null>(null)
-  const [compareId, setCompareId] = useState<number | null>(null)
-  const [period, setPeriod] = useState<'week' | 'month'>('week')
+  const [tab, setTab] = useState<'e1rm' | 'tonnage'>('e1rm')
 
-  const effectiveId = exerciseId ?? base.data?.exercises[0]?.id ?? null
+  const base = useFetch(() => api.get<Exercise[]>('/exercises'))
+  const effectiveId = exerciseId ?? base.data?.[0]?.id ?? null
+  const exercise = base.data?.find((e) => e.id === effectiveId)
 
   const e1rm = useFetch(
     () =>
       effectiveId === null
         ? Promise.resolve<E1RMPoint[]>([])
         : api.get<E1RMPoint[]>(`/analytics/e1rm?exercise_id=${effectiveId}`),
-    [effectiveId],
+    [effectiveId, formula],
   )
   const tonnage = useFetch(
     () =>
       effectiveId === null
         ? Promise.resolve<TonnageBucket[]>([])
-        : api.get<TonnageBucket[]>(`/analytics/tonnage?exercise_id=${effectiveId}&period=${period}`),
-    [effectiveId, period],
+        : api.get<TonnageBucket[]>(`/analytics/tonnage?exercise_id=${effectiveId}&period=week`),
+    [effectiveId],
   )
   const prs = useFetch(
     () =>
       effectiveId === null
         ? Promise.resolve<PersonalRecord[]>([])
         : api.get<PersonalRecord[]>(`/analytics/prs?exercise_id=${effectiveId}`),
-    [effectiveId],
+    [effectiveId, formula],
   )
   const prediction = useFetch(
     () =>
       effectiveId === null
         ? Promise.resolve<Prediction | null>(null)
         : api.get<Prediction>(`/analytics/predictions?exercise_id=${effectiveId}`),
-    [effectiveId],
-  )
-  const compare = useFetch(
-    () =>
-      effectiveId === null || compareId === null
-        ? Promise.resolve<ExerciseSeries[] | null>(null)
-        : api.get<ExerciseSeries[]>(`/analytics/compare?exercise_ids=${effectiveId},${compareId}`),
-    [effectiveId, compareId],
+    [effectiveId, formula],
   )
 
   if (base.loading) return <LoadingSkeleton lines={6} />
   if (base.error || !base.data) return <p className="error">{base.error ?? 'Failed to load'}</p>
 
-  const { exercises, settings } = base.data
-  const unit = settings.unit
-  const exercise = exercises.find((e) => e.id === effectiveId)
-
-  const compareRows = (() => {
-    if (!compare.data) return []
-    const [a, b] = compare.data
-    const rows = new Map<string, Record<string, number | string>>()
-    for (const series of [a, b]) {
-      for (const point of series.series) {
-        const row = rows.get(point.date) ?? { date: point.date }
-        row[series.exercise_name] = point.e1rm
-        rows.set(point.date, row)
-      }
-    }
-    return [...rows.values()].sort((x, y) => `${x.date}`.localeCompare(`${y.date}`))
-  })()
+  const lineData = (e1rm.data ?? []).map((p) => ({ d: shortDate(p.date), v: convertWeight(p.e1rm, unit) }))
+  const barData = (tonnage.data ?? []).map((b) => ({ b: b.bucket, v: convertWeight(b.tonnage, unit) }))
+  const pred = prediction.data
 
   return (
-    <>
-      <h1>Progress</h1>
-
-      <div className="card stack">
-        <select
-          value={effectiveId ?? ''}
-          onChange={(e) => setExerciseId(Number(e.target.value))}
-          aria-label="exercise"
-        >
-          {exercises.map((e) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ display: 'flex', gap: 10 }}>
+        <select value={effectiveId ?? ''} onChange={(e) => setExerciseId(Number(e.target.value))} style={{ flex: 1 }}>
+          {base.data.map((e) => (
             <option key={e.id} value={e.id}>
               {e.name}
             </option>
           ))}
         </select>
-      </div>
-
-      <div className="card">
-        <h2>e1RM trend</h2>
-        {e1rm.data && e1rm.data.length > 0 ? (
-          <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={e1rm.data} margin={chartMargin}>
-              <CartesianGrid stroke={GRID} strokeDasharray="3 3" />
-              <XAxis dataKey="date" stroke={TEXT} fontSize={11} />
-              <YAxis stroke={TEXT} fontSize={11} domain={['auto', 'auto']} />
-              <Tooltip
-                contentStyle={{ background: '#1a1c23', border: `1px solid ${GRID}` }}
-                formatter={(value) => [`${displayWeight(Number(value), unit)} ${unit}`, 'e1RM']}
-              />
-              <Line type="monotone" dataKey="e1rm" stroke={ACCENT} strokeWidth={2} dot={{ r: 3 }} />
-            </LineChart>
-          </ResponsiveContainer>
-        ) : (
-          <p className="muted">Log working sets of {exercise?.name} to see the trend.</p>
-        )}
-      </div>
-
-      <div className="card">
-        <div className="row-between" style={{ marginBottom: 8 }}>
-          <h2 style={{ margin: 0 }}>Tonnage</h2>
-          <select
-            value={period}
-            onChange={(e) => setPeriod(e.target.value as 'week' | 'month')}
-            style={{ width: 'auto' }}
-            aria-label="period"
-          >
-            <option value="week">weekly</option>
-            <option value="month">monthly</option>
-          </select>
+        <div
+          style={{
+            display: 'flex',
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius)',
+            overflow: 'hidden',
+            flexShrink: 0,
+          }}
+        >
+          {(['e1rm', 'tonnage'] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              style={{
+                padding: '9px 18px',
+                fontSize: 12,
+                fontWeight: 700,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+                background: tab === t ? 'var(--accent)' : 'transparent',
+                color: tab === t ? '#fff' : 'var(--text-muted)',
+              }}
+            >
+              {t}
+            </button>
+          ))}
         </div>
-        {tonnage.data && tonnage.data.length > 0 ? (
-          <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={tonnage.data} margin={chartMargin}>
-              <CartesianGrid stroke={GRID} strokeDasharray="3 3" />
-              <XAxis dataKey="bucket" stroke={TEXT} fontSize={11} />
-              <YAxis stroke={TEXT} fontSize={11} />
-              <Tooltip
-                contentStyle={{ background: '#1a1c23', border: `1px solid ${GRID}` }}
-                formatter={(value) => [`${Math.round(Number(value)).toLocaleString()} lbs`, 'tonnage']}
-              />
-              <Bar dataKey="tonnage" fill={ACCENT} radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        ) : (
-          <p className="muted">No working sets logged yet.</p>
-        )}
       </div>
 
-      <div className="card">
-        <h2>Next milestone</h2>
-        {prediction.loading ? <LoadingSkeleton lines={2} /> : null}
-        {prediction.data ? (
-          prediction.data.status === 'ok' ? (
-            <div className="row-between">
-              <BigNumber
-                value={displayWeight(prediction.data.milestone ?? 0, unit)}
-                unit={unit}
-                label={`current best e1RM ${displayWeight(prediction.data.current_best, unit)} ${unit}`}
-              />
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ color: 'var(--text-h)', fontWeight: 600 }}>
-                  ~{formatDate(prediction.data.projected_date!)}
+      <Card>
+        <CardHeader label={tab === 'e1rm' ? `${exercise?.name ?? ''} — e1RM Trend` : 'Weekly Tonnage'} />
+        {tab === 'e1rm' ? (
+          <LineChart data={lineData} color={accent} h={200} />
+        ) : (
+          <BarChart data={barData} color={accent} h={160} />
+        )}
+      </Card>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <Card>
+          <CardHeader label="Next Milestone" />
+          {pred && pred.status === 'ok' && pred.milestone != null ? (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, marginBottom: 14 }}>
+                <div style={{ fontFamily: 'var(--font-head)', fontSize: 64, fontWeight: 800, color: 'var(--accent)', lineHeight: 1 }}>
+                  {convertWeight(pred.milestone, unit)}
                 </div>
-                <div className="muted">
-                  95% CI {formatDate(prediction.data.ci_earliest!)} –{' '}
-                  {formatDate(prediction.data.ci_latest!)}
-                </div>
-                <div className="muted">
-                  +{prediction.data.slope_per_week} {unit === 'lbs' ? 'lb' : unit}/week trend
-                </div>
+                <div style={{ fontSize: 14, color: 'var(--text-muted)', paddingBottom: 8 }}>{unit}</div>
               </div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-h)', marginBottom: 4 }}>
+                ~{pred.projected_date ? formatDate(pred.projected_date) : ''}
+              </div>
+              {pred.ci_earliest && pred.ci_latest ? (
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 2 }}>
+                  95% CI: {formatDate(pred.ci_earliest)} – {formatDate(pred.ci_latest)}
+                </div>
+              ) : null}
+              {pred.slope_per_week != null ? (
+                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                  +{pred.slope_per_week} {unit}/week trend
+                </div>
+              ) : null}
             </div>
           ) : (
-            <p className="muted">
-              {prediction.data.status === 'insufficient_data'
-                ? 'Need at least 4 sessions in the last 8 weeks for a projection.'
-                : prediction.data.status === 'no_positive_trend'
-                  ? 'No upward trend right now — projection paused.'
-                  : 'You are beyond the milestone table. Strong.'}
-            </p>
-          )
-        ) : null}
+            <div style={{ color: 'var(--text-muted)', fontSize: 13, lineHeight: 1.6 }}>
+              {pred?.status === 'no_positive_trend'
+                ? 'No upward trend — keep pushing and it will appear.'
+                : pred?.status === 'no_milestone'
+                  ? 'You are beyond the milestone table. Strong.'
+                  : 'Log 4+ sessions in 8 weeks for a projection.'}
+            </div>
+          )}
+        </Card>
+        <Card>
+          <CardHeader label="PR Timeline" />
+          {prs.data && prs.data.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {[...prs.data].reverse().map((pr) => (
+                <div
+                  key={pr.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '8px 10px',
+                    background: 'var(--bg-card-raised)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 'var(--radius)',
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-h)' }}>{exercise?.name}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{formatDate(pr.achieved_on)}</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontFamily: 'var(--font-head)', fontSize: 24, fontWeight: 800, color: 'var(--accent)' }}>
+                      {convertWeight(pr.value, unit)} <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)' }}>{unit}</span>
+                    </div>
+                    <div style={{ marginTop: 3 }}>
+                      <Pill variant={pr.record_type === 'e1rm' ? 'e1rm' : 'pr'}>
+                        {pr.record_type === 'e1rm' ? 'e1RM' : 'top weight'}
+                      </Pill>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>No PRs yet — they'll appear as you log working sets.</p>
+          )}
+        </Card>
       </div>
-
-      <div className="card">
-        <h2>Compare lifts</h2>
-        <select
-          value={compareId ?? ''}
-          onChange={(e) => setCompareId(e.target.value ? Number(e.target.value) : null)}
-          aria-label="compare with"
-        >
-          <option value="">Choose a second lift…</option>
-          {exercises
-            .filter((e) => e.id !== effectiveId)
-            .map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.name}
-              </option>
-            ))}
-        </select>
-        {compare.data && compareRows.length > 0 ? (
-          <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={compareRows} margin={{ ...chartMargin, top: 12 }}>
-              <CartesianGrid stroke={GRID} strokeDasharray="3 3" />
-              <XAxis dataKey="date" stroke={TEXT} fontSize={11} />
-              <YAxis stroke={TEXT} fontSize={11} domain={['auto', 'auto']} />
-              <Tooltip contentStyle={{ background: '#1a1c23', border: `1px solid ${GRID}` }} />
-              <Legend />
-              <Line
-                type="monotone"
-                dataKey={compare.data[0].exercise_name}
-                stroke={ACCENT}
-                strokeWidth={2}
-                connectNulls
-                dot={{ r: 3 }}
-              />
-              <Line
-                type="monotone"
-                dataKey={compare.data[1].exercise_name}
-                stroke={GREEN}
-                strokeWidth={2}
-                connectNulls
-                dot={{ r: 3 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        ) : null}
-      </div>
-
-      <div className="card">
-        <h2>PR timeline</h2>
-        {prs.data && prs.data.length > 0 ? (
-          <div className="stack">
-            {[...prs.data].reverse().map((pr) => (
-              <div key={pr.id} className="row-between">
-                <span className="muted">{formatDate(pr.achieved_on)}</span>
-                <span>
-                  <span className={`pill ${pr.record_type === 'weight' ? 'green' : ''}`}>
-                    {pr.record_type === 'weight' ? 'top weight' : 'e1RM'}
-                  </span>{' '}
-                  <span style={{ fontFamily: 'var(--mono)', color: 'var(--text-h)', fontWeight: 600 }}>
-                    {displayWeight(pr.value, unit)} {unit}
-                  </span>
-                </span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="muted">No PRs yet — they'll appear as you log working sets.</p>
-        )}
-      </div>
-    </>
+    </div>
   )
 }

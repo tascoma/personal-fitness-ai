@@ -1,9 +1,14 @@
 const LBS_PER_KG = 2.20462
 
+/** Numeric weight in the chosen display unit (weights are stored in lbs). */
+export function convertWeight(lbs: number, unit: 'lbs' | 'kg'): number {
+  if (unit === 'kg') return Math.round((lbs / LBS_PER_KG) * 10) / 10
+  return Math.round(lbs * 10) / 10
+}
+
 /** All weights are stored in lbs; convert only at display time. */
 export function displayWeight(lbs: number, unit: 'lbs' | 'kg'): string {
-  if (unit === 'kg') return `${Math.round((lbs / LBS_PER_KG) * 10) / 10}`
-  return `${Math.round(lbs * 10) / 10}`
+  return `${convertWeight(lbs, unit)}`
 }
 
 export function formatDate(iso: string): string {
