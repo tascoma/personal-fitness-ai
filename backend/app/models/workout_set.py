@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, Index
+from sqlalchemy import DateTime, ForeignKey, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.databases import Base
@@ -28,7 +28,9 @@ class WorkoutSet(Base):
     notes: Mapped[str | None] = mapped_column(default=None)
     e1rm_epley: Mapped[float] = mapped_column(default=0.0)
     e1rm_brzycki: Mapped[float] = mapped_column(default=0.0)
-    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )
 
     session: Mapped["WorkoutSession"] = relationship(back_populates="sets")
     exercise: Mapped["Exercise"] = relationship()

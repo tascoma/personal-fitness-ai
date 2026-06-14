@@ -1,6 +1,6 @@
 from datetime import UTC, date, datetime
 
-from sqlalchemy import Date, ForeignKey, String
+from sqlalchemy import Date, DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.databases import Base
@@ -15,4 +15,6 @@ class PersonalRecord(Base):
     record_type: Mapped[str] = mapped_column(String(10))  # "weight" | "e1rm"
     value: Mapped[float]
     achieved_on: Mapped[date] = mapped_column(Date)
-    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )

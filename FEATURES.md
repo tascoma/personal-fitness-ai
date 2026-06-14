@@ -14,9 +14,9 @@ npm install && npm run dev
 ```
 
 Copy `.env.example` to `.env` at the repo root and set a real `ANTHROPIC_API_KEY`
-(everything except the three `/api/ai/*` endpoints works without one). The
-database is a local SQLite file (`backend/app.db`), created and seeded on first
-startup — no account, no cloud.
+(everything except the three `/api/ai/*` endpoints works without one) and a
+`DATABASE_URL` pointing at your Supabase Postgres database. Tables are created and
+seeded on first startup.
 
 Tests: `uv run pytest` from `backend/` (56 tests; AI tests run against
 pydantic-ai's `TestModel`, no API key needed). Frontend: `npm run lint && npm run build`.
@@ -66,7 +66,7 @@ in the UI carries a "✨ AI-generated" badge.
   from the residual standard error. Updates automatically as data lands.
 
 ### AI caching
-Every AI output is cached in SQLite keyed by
+Every AI output is cached in the database keyed by
 `sha256(kind : model : canonical-JSON of the input metrics)` — identical data
 never triggers a second API call; any edit to the underlying sets changes the
 fingerprint and regenerates. `?refresh=true` forces regeneration. Responses
@@ -76,7 +76,7 @@ report `{ai_generated, cached, model}`.
 
 | Decision | Rationale |
 |---|---|
-| `Base.metadata.create_all()` on startup, no Alembic | Local single-user SQLite v1; adopt `/add-migration` when moving to Postgres |
+| `Base.metadata.create_all()` on startup, no Alembic | Single-user v1 on Supabase Postgres; adopt `/add-migration` when the schema needs to evolve in place |
 | Weights stored in lbs; kg is display-only conversion | One source of truth, no migration when the unit toggles |
 | Both e1RM formulas stored per set | Formula switch needs zero recompute of sets |
 | PR timeline fully rebuilt per exercise on any change | Trivially cheap at personal scale and provably correct |

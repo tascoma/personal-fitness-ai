@@ -17,7 +17,9 @@ class Base(DeclarativeBase):
 
 
 def enable_sqlite_foreign_keys(target: AsyncEngine) -> None:
-    """SQLite ships with FK enforcement off; ON DELETE CASCADE needs it."""
+    """Turn on FK enforcement for the in-memory SQLite engine used by the test
+    suite (SQLite ships with it off; ON DELETE CASCADE needs it). The runtime
+    engine is Postgres, which enforces foreign keys natively."""
     if target.dialect.name != "sqlite":
         return
 
@@ -29,7 +31,6 @@ def enable_sqlite_foreign_keys(target: AsyncEngine) -> None:
 
 
 engine = create_async_engine(settings.database_url)
-enable_sqlite_foreign_keys(engine)
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
 
