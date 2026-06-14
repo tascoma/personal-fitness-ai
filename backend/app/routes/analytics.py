@@ -1,3 +1,4 @@
+from datetime import date as date_type
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -5,12 +6,14 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.databases import get_db
-from app.models import PersonalRecord
+from app.models import Exercise, PersonalRecord
 from app.schemas.analytics import (
     E1RMPoint,
     ExerciseSeries,
     PersonalRecordRead,
     PredictionRead,
+    RecentPRRead,
+    SummaryRead,
     TonnageBucket,
 )
 from app.services import analytics as svc
@@ -18,6 +21,31 @@ from app.services.exercises import get_exercise
 from app.services.user_settings import get_settings
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
+
+
+@router.get("/summary", response_model=SummaryRead)
+async def summary(db: AsyncSession = Depends(get_db)):
+    stats = await svc.summary_stats(db, date_type.today())
+    return SummaryRead(**stats.__dict__)
+
+
+@router.get("/recent-prs", response_model=list[RecentPRRead])
+async def recent_prs(
+    limit: int = Query(10, ge=1, le=50),
+    db: AsyncSession = Depends(get_db),
+):
+    rows = (
+        await db.execute(
+            select(PersonalRecord, Exercise.name)
+            .join(Exercise, PersonalRecord.exercise_id == Exercise.id)
+            .order_by(PersonalRecord.achieved_on.desc(), PersonalRecord.id.desc())
+            .limit(limit)
+        )
+    ).all()
+    return [
+        RecentPRRead(**PersonalRecordRead.model_validate(pr).model_dump(), exercise_name=name)
+        for pr, name in rows
+    ]
 
 
 @router.get("/tonnage", response_model=list[TonnageBucket])

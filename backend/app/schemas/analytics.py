@@ -24,6 +24,22 @@ class PersonalRecordRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class RecentPRRead(PersonalRecordRead):
+    exercise_name: str
+
+
+class SummaryRead(BaseModel):
+    total_sessions: int
+    total_tonnage: float
+    training_days: int
+    current_streak_weeks: int
+    weekly_frequency: float
+    this_week_tonnage: float
+    last_week_tonnage: float
+    active_pr_count: int
+    sessions_this_week: int
+
+
 class ExerciseSeries(BaseModel):
     exercise_id: int
     exercise_name: str
