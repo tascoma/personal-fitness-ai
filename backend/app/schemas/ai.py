@@ -31,6 +31,18 @@ class DigestOutput(BaseModel):
     focus_next_week: str = Field(description="The single most useful focus for next week")
 
 
+class DashboardOutput(BaseModel):
+    """Consolidated 'state of training' narrative for the dashboard."""
+
+    headline: str = Field(description="One-line state-of-training takeaway")
+    highlights: list[str] = Field(
+        description="2-4 positive highlights grounded in the provided metrics"
+    )
+    watch_items: list[str] = Field(
+        description="1-3 things to watch or improve, grounded in the metrics"
+    )
+
+
 # ---------- API response envelopes ----------
 
 
@@ -67,3 +79,7 @@ class RecommendationsResponse(AIEnvelope):
 class DigestResponse(AIEnvelope):
     week: str  # e.g. "2026-W24"
     digest: DigestOutput
+
+
+class DashboardResponse(AIEnvelope):
+    insight: DashboardOutput

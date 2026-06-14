@@ -15,6 +15,7 @@ from app.services.analytics import (
     detect_plateau,
     e1rm_series,
     round_to_5,
+    summary_stats,
     tonnage_buckets,
 )
 from app.services.e1rm import pick
@@ -212,4 +213,42 @@ async def weekly_metrics(db: AsyncSession, as_of: date_type) -> dict:
         "sessions": session_count,
         "e1rm_formula": formula,
         "lifts": lifts,
+    }
+
+
+async def dashboard_metrics(db: AsyncSession, as_of: date_type) -> dict:
+    """High-level "state of training" payload: all-time/weekly summary, the top
+    progressive-overload targets, and the most recent PRs."""
+    summary = await summary_stats(db, as_of)
+    targets = await recommendation_targets(db, as_of)
+
+    recent_pr_rows = (
+        await db.execute(
+            select(PersonalRecord, Exercise.name)
+            .join(Exercise, PersonalRecord.exercise_id == Exercise.id)
+            .order_by(PersonalRecord.achieved_on.desc(), PersonalRecord.id.desc())
+            .limit(5)
+        )
+    ).all()
+
+    return {
+        "summary": summary.__dict__,
+        "top_targets": [
+            {
+                "exercise": t.exercise_name,
+                "target_weight": t.target_weight,
+                "rep_scheme": t.rep_scheme,
+                "action": t.action,
+            }
+            for t in targets[:3]
+        ],
+        "recent_prs": [
+            {
+                "exercise": name,
+                "type": pr.record_type,
+                "value": pr.value,
+                "achieved_on": pr.achieved_on.isoformat(),
+            }
+            for pr, name in recent_pr_rows
+        ],
     }

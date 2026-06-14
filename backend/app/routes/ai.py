@@ -4,9 +4,16 @@ from datetime import date as date_type
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.coach import digest_agent, insight_agent, recommendation_agent
+from app.agents.coach import (
+    dashboard_agent,
+    digest_agent,
+    insight_agent,
+    recommendation_agent,
+)
 from app.databases import get_db
 from app.schemas.ai import (
+    DashboardOutput,
+    DashboardResponse,
     DigestOutput,
     DigestResponse,
     InsightOutput,
@@ -15,7 +22,12 @@ from app.schemas.ai import (
     RecommendationsResponse,
 )
 from app.services.ai_cache import get_or_create
-from app.services.ai_metrics import recommendation_targets, session_metrics, weekly_metrics
+from app.services.ai_metrics import (
+    dashboard_metrics,
+    recommendation_targets,
+    session_metrics,
+    weekly_metrics,
+)
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
@@ -73,3 +85,21 @@ async def digest(refresh: bool = False, db: AsyncSession = Depends(get_db)):
     return DigestResponse(
         week=metrics["week"], digest=DigestOutput(**content), cached=cached, model=model
     )
+
+
+@router.get("/dashboard", response_model=DashboardResponse)
+async def dashboard(refresh: bool = False, db: AsyncSession = Depends(get_db)):
+    metrics = await dashboard_metrics(db, date_type.today())
+
+    async def generate() -> DashboardOutput:
+        if metrics["summary"]["total_sessions"] == 0:
+            return DashboardOutput(
+                headline="No training logged yet.",
+                highlights=[],
+                watch_items=["Log your first session to start tracking progress."],
+            )
+        result = await dashboard_agent.run(f"Training state:\n{json.dumps(metrics, default=str)}")
+        return result.output
+
+    content, cached, model = await get_or_create(db, "dashboard", metrics, generate, refresh)
+    return DashboardResponse(insight=DashboardOutput(**content), cached=cached, model=model)
