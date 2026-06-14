@@ -27,7 +27,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(
-    title="agent-webapp-template",
+    title="Personal Fitness AI",
     lifespan=lifespan,
 )
 

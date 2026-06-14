@@ -48,7 +48,11 @@ function Sidebar() {
       <div style={{ padding: '22px 20px 18px', borderBottom: '1px solid var(--border)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 2 }}>
           <svg width="22" height="22" viewBox="0 0 22 22">
-            <rect x="4" y="4" width="14" height="14" rx="2" fill="var(--accent)" transform="rotate(45 11 11)" />
+            <rect x="0" y="4" width="4" height="14" rx="1" fill="#84cc16"/>
+            <rect x="4" y="6" width="3" height="10" rx="1" fill="#84cc16"/>
+            <rect x="7" y="9" width="8" height="4" rx="1" fill="#84cc16"/>
+            <rect x="15" y="6" width="3" height="10" rx="1" fill="#84cc16"/>
+            <rect x="18" y="4" width="4" height="14" rx="1" fill="#84cc16"/>
           </svg>
           <div
             style={{
