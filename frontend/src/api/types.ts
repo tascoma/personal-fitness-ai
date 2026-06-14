@@ -3,6 +3,7 @@ export interface Exercise {
   name: string
   is_compound: boolean
   is_custom: boolean
+  is_bodyweight: boolean
   increment: number
 }
 

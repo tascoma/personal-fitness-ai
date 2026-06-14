@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 
 class WorkoutSetCreate(BaseModel):
     exercise_id: int
-    weight: float = Field(gt=0)  # lbs
+    weight: float = Field(ge=0)  # lbs; 0 for bodyweight exercises
     reps: int = Field(ge=1, le=100)
     rpe: float | None = Field(default=None, ge=1, le=10)
     is_warmup: bool = False

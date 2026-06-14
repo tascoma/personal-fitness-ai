@@ -20,6 +20,9 @@ DEFAULT_EXERCISES: list[tuple[str, float]] = [
     ("Close-Grip Bench", 5.0),
     ("Sumo Deadlift", 10.0),
     ("Power Clean", 10.0),
+    ("T-Bar Row", 5.0),
+    ("Row Machine", 5.0),
+    ("Incline Dumbbell Press", 5.0),
 ]
 
 
