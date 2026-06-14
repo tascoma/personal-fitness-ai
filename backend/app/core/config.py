@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     supabase_service_role_key: str
     storage_bucket: str = "uploads"
     anthropic_api_key: str
-    anthropic_model: str = "claude-opus-4-8"
+    anthropic_model: str = "claude-haiku-4-5-20251001"
     log_level: str = "INFO"
 
     # Anchored to the repo root so imports work from any working directory.
