@@ -16,12 +16,12 @@ export function Stepper({ label, value, step, min = 0, onChange, format }: Stepp
       aria-label={`${dir > 0 ? 'increase' : 'decrease'} ${label}`}
       onClick={() => onChange(dir > 0 ? value + step : Math.max(min, value - step))}
       style={{
-        width: 72,
+        width: 48,
         flexShrink: 0,
         background: 'var(--bg-input)',
         border: 'none',
         color: col,
-        fontSize: 32,
+        fontSize: 28,
         fontWeight: 200,
         cursor: 'pointer',
         display: 'flex',
@@ -49,21 +49,24 @@ export function Stepper({ label, value, step, min = 0, onChange, format }: Stepp
       <div
         style={{
           flex: 1,
-          background: 'var(--bg-card)',
+          minWidth: 0,
+          background: 'var(--bg-input)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '12px 0',
+          padding: '12px 4px',
+          overflow: 'hidden',
         }}
       >
         <div
           style={{
             fontFamily: 'var(--font-head)',
-            fontSize: 56,
+            fontSize: 42,
             fontWeight: 800,
             color: 'var(--text-h)',
             lineHeight: 1,
+            whiteSpace: 'nowrap',
           }}
         >
           {shown}
