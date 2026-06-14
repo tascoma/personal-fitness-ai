@@ -60,3 +60,8 @@ async def delete(session_id: int, db: AsyncSession = Depends(get_db)):
 @router.post("/{session_id}/sets", response_model=WorkoutSetRead, status_code=201)
 async def add_set(session_id: int, data: WorkoutSetCreate, db: AsyncSession = Depends(get_db)):
     return await sets_svc.create_set(db, session_id, data)
+
+
+@router.post("/{session_id}/sets/bulk", response_model=list[WorkoutSetRead], status_code=201)
+async def add_sets_bulk(session_id: int, data: list[WorkoutSetCreate], db: AsyncSession = Depends(get_db)):
+    return await sets_svc.create_sets_bulk(db, session_id, data)

@@ -46,6 +46,59 @@ async def create_set(db: AsyncSession, session_id: int, data: WorkoutSetCreate) 
     return workout_set
 
 
+async def create_sets_bulk(
+    db: AsyncSession, session_id: int, items: list[WorkoutSetCreate]
+) -> list[WorkoutSet]:
+    if await db.get(WorkoutSession, session_id) is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    exercise_ids = {item.exercise_id for item in items}
+    for eid in exercise_ids:
+        if await db.get(Exercise, eid) is None:
+            raise HTTPException(status_code=404, detail=f"Exercise {eid} not found")
+
+    # Fetch current max set_number per exercise in one query each, before inserting
+    max_set_numbers: dict[int, int] = {}
+    for eid in exercise_ids:
+        current_max = await db.scalar(
+            select(func.max(WorkoutSet.set_number)).where(
+                WorkoutSet.session_id == session_id,
+                WorkoutSet.exercise_id == eid,
+            )
+        )
+        max_set_numbers[eid] = current_max or 0
+
+    workout_sets: list[WorkoutSet] = []
+    for data in items:
+        set_number = data.set_number
+        if set_number is None:
+            max_set_numbers[data.exercise_id] += 1
+            set_number = max_set_numbers[data.exercise_id]
+
+        e1rm_epley, e1rm_brzycki = compute_both(data.weight, data.reps)
+        workout_set = WorkoutSet(
+            **data.model_dump(exclude={"set_number"}),
+            session_id=session_id,
+            set_number=set_number,
+            e1rm_epley=e1rm_epley,
+            e1rm_brzycki=e1rm_brzycki,
+        )
+        db.add(workout_set)
+        workout_sets.append(workout_set)
+
+    await db.flush()
+
+    # Rebuild PRs once per unique exercise instead of once per set
+    formula = (await get_settings(db)).e1rm_formula
+    for eid in exercise_ids:
+        await rebuild_prs(db, eid, formula)
+
+    await db.commit()
+    for ws in workout_sets:
+        await db.refresh(ws)
+    return workout_sets
+
+
 async def get_set(db: AsyncSession, set_id: int) -> WorkoutSet:
     workout_set = await db.get(WorkoutSet, set_id)
     if workout_set is None:
