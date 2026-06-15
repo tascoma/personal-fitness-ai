@@ -31,6 +31,32 @@ export interface WorkoutSession {
 export interface UserSettings {
   unit: 'lbs' | 'kg'
   e1rm_formula: 'epley' | 'brzycki'
+  height_cm: number | null
+  birth_date: string | null
+  sex: 'male' | 'female' | null
+  training_goal: string | null
+  // Derived, read-only.
+  age: number | null
+  current_bodyweight: number | null
+}
+
+export interface BodyweightEntry {
+  id: number
+  date: string
+  weight: number
+}
+
+export interface RelativeStrengthLift {
+  exercise_id: number
+  exercise_name: string
+  e1rm: number
+  ratio: number | null
+  tier: string | null
+}
+
+export interface RelativeStrength {
+  bodyweight: number | null
+  lifts: RelativeStrengthLift[]
 }
 
 export interface TonnageBucket {
