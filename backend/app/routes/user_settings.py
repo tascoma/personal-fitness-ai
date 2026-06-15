@@ -10,9 +10,10 @@ router = APIRouter(prefix="/settings", tags=["settings"])
 
 @router.get("", response_model=UserSettingsRead)
 async def get_settings(db: AsyncSession = Depends(get_db)):
-    return await svc.get_settings(db)
+    return await svc.settings_read(db)
 
 
 @router.patch("", response_model=UserSettingsRead)
 async def update_settings(data: UserSettingsUpdate, db: AsyncSession = Depends(get_db)):
-    return await svc.update_settings(db, data)
+    await svc.update_settings(db, data)
+    return await svc.settings_read(db)
