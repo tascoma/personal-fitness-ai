@@ -31,6 +31,32 @@ export interface WorkoutSession {
 export interface UserSettings {
   unit: 'lbs' | 'kg'
   e1rm_formula: 'epley' | 'brzycki'
+  height_cm: number | null
+  birth_date: string | null
+  sex: 'male' | 'female' | null
+  training_goal: string | null
+  // Derived, read-only.
+  age: number | null
+  current_bodyweight: number | null
+}
+
+export interface BodyweightEntry {
+  id: number
+  date: string
+  weight: number
+}
+
+export interface RelativeStrengthLift {
+  exercise_id: number
+  exercise_name: string
+  e1rm: number
+  ratio: number | null
+  tier: string | null
+}
+
+export interface RelativeStrength {
+  bodyweight: number | null
+  lifts: RelativeStrengthLift[]
 }
 
 export interface TonnageBucket {
@@ -56,6 +82,22 @@ export interface ExerciseSeries {
   exercise_id: number
   exercise_name: string
   series: E1RMPoint[]
+}
+
+export interface SummaryStats {
+  total_sessions: number
+  total_tonnage: number
+  training_days: number
+  current_streak_weeks: number
+  weekly_frequency: number
+  this_week_tonnage: number
+  last_week_tonnage: number
+  active_pr_count: number
+  sessions_this_week: number
+}
+
+export interface RecentPR extends PersonalRecord {
+  exercise_name: string
 }
 
 export interface Prediction {
@@ -111,5 +153,13 @@ export interface DigestResponse extends AIEnvelope {
     summary: string
     lift_notes: string[]
     focus_next_week: string
+  }
+}
+
+export interface DashboardResponse extends AIEnvelope {
+  insight: {
+    headline: string
+    highlights: string[]
+    watch_items: string[]
   }
 }

@@ -172,3 +172,51 @@ async def test_predictions_endpoint(client):
     assert pred["milestone"] == 405  # best e1rm 320x5 = 373.3 → next is 405
     assert pred["projected_date"] is not None
     assert pred["ci_earliest"] <= pred["projected_date"] <= pred["ci_latest"]
+
+
+async def test_summary_endpoint_empty(client):
+    summary = (await client.get("/api/analytics/summary")).json()
+    assert summary["total_sessions"] == 0
+    assert summary["total_tonnage"] == 0.0
+    assert summary["current_streak_weeks"] == 0
+    assert summary["active_pr_count"] == 0
+
+
+async def test_summary_endpoint_counts_and_streak(client):
+    squat = await _squat_id(client)
+    today = date.today()
+    # Train this week and each of the two prior weeks → 3-week streak. Each
+    # session has one working set plus a warm-up (excluded from tonnage).
+    for back in range(3):
+        day = (today - timedelta(weeks=back)).isoformat()
+        session = (await client.post("/api/sessions", json={"date": day})).json()
+        await client.post(
+            f"/api/sessions/{session['id']}/sets",
+            json={"exercise_id": squat, "weight": 300, "reps": 5},
+        )
+        await client.post(
+            f"/api/sessions/{session['id']}/sets",
+            json={"exercise_id": squat, "weight": 135, "reps": 5, "is_warmup": True},
+        )
+    summary = (await client.get("/api/analytics/summary")).json()
+    assert summary["total_sessions"] == 3
+    assert summary["training_days"] == 3
+    assert summary["current_streak_weeks"] == 3
+    assert summary["sessions_this_week"] == 1
+    assert summary["this_week_tonnage"] == 1500.0  # warm-up excluded
+    assert summary["total_tonnage"] == 4500.0
+    assert summary["active_pr_count"] >= 1
+
+
+async def test_recent_prs_endpoint(client):
+    squat = await _squat_id(client)
+    bench = next(
+        e["id"] for e in (await client.get("/api/exercises")).json() if e["name"] == "Bench Press"
+    )
+    await _log(client, "2026-06-01", squat, 315, 5)
+    await _log(client, "2026-06-02", bench, 225, 5)
+    prs = (await client.get("/api/analytics/recent-prs?limit=10")).json()
+    assert len(prs) >= 2
+    # Newest first; each row carries its exercise name.
+    assert prs[0]["achieved_on"] >= prs[-1]["achieved_on"]
+    assert {"Squat", "Bench Press"} <= {p["exercise_name"] for p in prs}

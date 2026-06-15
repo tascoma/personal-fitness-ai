@@ -41,6 +41,7 @@ app.add_middleware(
 
 from app.routes.ai import router as ai_router  # noqa: E402
 from app.routes.analytics import router as analytics_router  # noqa: E402
+from app.routes.bodyweight import router as bodyweight_router  # noqa: E402
 from app.routes.exercises import router as exercises_router  # noqa: E402
 from app.routes.sets import router as sets_router  # noqa: E402
 from app.routes.user_settings import router as settings_router  # noqa: E402
@@ -52,6 +53,7 @@ app.include_router(sessions_router, prefix="/api")
 app.include_router(sets_router, prefix="/api")
 app.include_router(analytics_router, prefix="/api")
 app.include_router(ai_router, prefix="/api")
+app.include_router(bodyweight_router, prefix="/api")
 
 
 if __name__ == "__main__":

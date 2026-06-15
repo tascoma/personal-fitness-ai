@@ -7,10 +7,10 @@ from dataclasses import dataclass
 from datetime import date as date_type
 from datetime import timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import WorkoutSession, WorkoutSet
+from app.models import PersonalRecord, WorkoutSession, WorkoutSet
 from app.services.e1rm import pick
 
 MILESTONES = [135.0, 185.0, 225.0, 275.0, 315.0, 365.0, 405.0, 455.0, 495.0] + [
@@ -178,3 +178,81 @@ async def tonnage_buckets(
             key = f"{iso.year}-W{iso.week:02d}"
         buckets[key] = buckets.get(key, 0.0) + weight * reps
     return sorted(buckets.items())
+
+
+def _week_key(d: date_type) -> str:
+    iso = d.isocalendar()
+    return f"{iso.year}-W{iso.week:02d}"
+
+
+@dataclass
+class Summary:
+    total_sessions: int = 0
+    total_tonnage: float = 0.0
+    training_days: int = 0
+    current_streak_weeks: int = 0
+    weekly_frequency: float = 0.0
+    this_week_tonnage: float = 0.0
+    last_week_tonnage: float = 0.0
+    active_pr_count: int = 0
+    sessions_this_week: int = 0
+
+
+async def summary_stats(db: AsyncSession, as_of: date_type) -> Summary:
+    """All-time totals plus current-week and streak figures for the KPI strip."""
+    # Session dates (one row per session) drive counts, streaks and frequency.
+    session_dates = list(
+        (await db.scalars(select(WorkoutSession.date))).all()
+    )
+    total_tonnage = (
+        await db.scalar(
+            select(func.coalesce(func.sum(WorkoutSet.weight * WorkoutSet.reps), 0.0)).where(
+                WorkoutSet.is_warmup.is_(False)
+            )
+        )
+    ) or 0.0
+
+    week_buckets = dict(await tonnage_buckets(db, None, "week"))
+    this_key = _week_key(as_of)
+    last_key = _week_key(as_of - timedelta(weeks=1))
+
+    # Sessions per ISO week, used for streak and frequency.
+    sessions_by_week: dict[str, int] = {}
+    for d in session_dates:
+        sessions_by_week[_week_key(d)] = sessions_by_week.get(_week_key(d), 0) + 1
+
+    # Streak: consecutive weeks with >=1 session, ending this week (or last week,
+    # so an as-yet-untrained current week doesn't break a live streak).
+    streak = 0
+    cursor = as_of if this_key in sessions_by_week else as_of - timedelta(weeks=1)
+    while _week_key(cursor) in sessions_by_week:
+        streak += 1
+        cursor -= timedelta(weeks=1)
+
+    # Frequency: avg sessions across the most recent 8 weeks that had any session.
+    active_weeks = sorted(sessions_by_week, reverse=True)[:8]
+    weekly_frequency = (
+        round(sum(sessions_by_week[w] for w in active_weeks) / len(active_weeks), 1)
+        if active_weeks
+        else 0.0
+    )
+
+    active_pr_count = (
+        await db.scalar(
+            select(func.count(PersonalRecord.id)).where(
+                PersonalRecord.achieved_on >= as_of - timedelta(days=30)
+            )
+        )
+    ) or 0
+
+    return Summary(
+        total_sessions=len(session_dates),
+        total_tonnage=round(total_tonnage, 1),
+        training_days=len(set(session_dates)),
+        current_streak_weeks=streak,
+        weekly_frequency=weekly_frequency,
+        this_week_tonnage=round(week_buckets.get(this_key, 0.0), 1),
+        last_week_tonnage=round(week_buckets.get(last_key, 0.0), 1),
+        active_pr_count=active_pr_count,
+        sessions_this_week=sessions_by_week.get(this_key, 0),
+    )

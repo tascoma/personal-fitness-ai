@@ -1,7 +1,32 @@
+from datetime import date
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import UserSettings
-from app.schemas.user_settings import UserSettingsUpdate
+from app.schemas.user_settings import UserSettingsRead, UserSettingsUpdate
+from app.services.bodyweight import latest_weight
+
+
+def compute_age(birth_date: date | None, as_of: date | None = None) -> int | None:
+    if birth_date is None:
+        return None
+    today = as_of or date.today()
+    return today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+
+
+async def settings_read(db: AsyncSession) -> UserSettingsRead:
+    """Settings plus derived read-only fields (age, current bodyweight)."""
+    row = await get_settings(db)
+    return UserSettingsRead(
+        unit=row.unit,
+        e1rm_formula=row.e1rm_formula,
+        height_cm=row.height_cm,
+        birth_date=row.birth_date,
+        sex=row.sex,
+        training_goal=row.training_goal,
+        age=compute_age(row.birth_date),
+        current_bodyweight=await latest_weight(db),
+    )
 
 
 async def get_settings(db: AsyncSession) -> UserSettings:

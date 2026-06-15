@@ -1,6 +1,8 @@
 import { api } from '../api/client'
 import type { Exercise, PersonalRecord, WorkoutSession } from '../api/types'
 import { Card, CardHeader, LoadingSkeleton } from '../components/ui'
+import { BodyweightCard } from '../components/settings/BodyweightCard'
+import { ProfileCard } from '../components/settings/ProfileCard'
 import { useApp } from '../context/app'
 import { useFetch } from '../hooks/useFetch'
 
@@ -10,7 +12,7 @@ const FORMULAS: { val: 'epley' | 'brzycki'; label: string; desc: string }[] = [
 ]
 
 export function Settings() {
-  const { unit, formula, updateSettings, ready } = useApp()
+  const { unit, formula, settings, updateSettings, ready } = useApp()
 
   const stats = useFetch(async () => {
     const [sessions, exercises] = await Promise.all([
@@ -29,6 +31,8 @@ export function Settings() {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, alignItems: 'start' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {settings && <ProfileCard settings={settings} unit={unit} updateSettings={updateSettings} />}
+        <BodyweightCard unit={unit} />
         <Card>
           <CardHeader label="Weight Unit" />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
