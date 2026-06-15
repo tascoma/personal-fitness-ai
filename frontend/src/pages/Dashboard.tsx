@@ -5,6 +5,7 @@ import type {
   Exercise,
   ExerciseSeries,
   RecommendationsResponse,
+  RelativeStrength,
   SummaryStats,
   WorkoutSession,
 } from '../api/types'
@@ -28,14 +29,18 @@ export function Dashboard() {
   // null = follow the default (first hero); a number = a user-pinned selection.
   const [pinnedHeroId, setPinnedHeroId] = useState<number | null>(null)
 
-  const core = useFetch(async () => {
-    const [exercises, recent, summary] = await Promise.all([
-      api.get<Exercise[]>('/exercises'),
-      api.get<WorkoutSession[]>('/sessions?limit=1'),
-      api.get<SummaryStats>('/analytics/summary'),
-    ])
-    return { exercises, recent, summary }
-  })
+  const core = useFetch(
+    async () => {
+      const [exercises, recent, summary, relStrength] = await Promise.all([
+        api.get<Exercise[]>('/exercises'),
+        api.get<WorkoutSession[]>('/sessions?limit=1'),
+        api.get<SummaryStats>('/analytics/summary'),
+        api.get<RelativeStrength>('/analytics/relative-strength'),
+      ])
+      return { exercises, recent, summary, relStrength }
+    },
+    [formula],
+  )
 
   const recommendations = useFetch(() => api.get<RecommendationsResponse>('/ai/recommendations'))
   const digest = useFetch(() => api.get<DigestResponse>('/ai/digest'))
@@ -63,11 +68,14 @@ export function Dashboard() {
   if (core.loading) return <LoadingSkeleton lines={6} />
   if (core.error || !core.data) return <p className="error">{core.error ?? 'Failed to load'}</p>
 
-  const { exercises, recent, summary } = core.data
+  const { exercises, recent, summary, relStrength } = core.data
   const last = recent[0]
   const targetByExId = (id: number) =>
     recommendations.data?.targets.find((t) => t.exercise_id === id)
   const seriesFor = (exId: number) => series.data?.find((s) => s.exercise_id === exId)
+  const relFor = (exId: number) => relStrength.lifts.find((l) => l.exercise_id === exId)
+  // Top relative-strength lift (lifts are returned sorted by ratio desc).
+  const topRel = relStrength.lifts.find((l) => l.ratio != null)
 
   const heroExercises = heroIds
     .map((id) => exercises.find((e) => e.id === id))
@@ -102,6 +110,13 @@ export function Dashboard() {
           label="Sessions This Week"
           value={summary.sessions_this_week}
           sub={`${summary.weekly_frequency}/wk avg`}
+        />
+        <StatCard
+          label="Relative Strength"
+          value={0}
+          valueText={topRel?.ratio != null ? `${topRel.ratio.toFixed(2)}×` : '—'}
+          unit={topRel?.ratio != null ? `${topRel.exercise_name} ÷ BW` : 'log a bodyweight'}
+          accent={topRel?.ratio != null ? 'var(--accent)' : undefined}
         />
         <StatCard label="All-Time Volume" value={k(summary.total_tonnage)} suffix="K" unit={`${unit} lifted`} />
         <StatCard label="Active PRs" value={summary.active_pr_count} unit="last 30 days" />
@@ -138,6 +153,7 @@ export function Dashboard() {
             exercise={exercise}
             series={seriesFor(exercise.id)}
             target={targetByExId(exercise.id)}
+            rel={relFor(exercise.id)}
             unit={unit}
             accent={accent}
             selected={exercise.id === selectedHeroId}

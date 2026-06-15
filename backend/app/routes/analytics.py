@@ -6,17 +6,21 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.databases import get_db
-from app.models import Exercise, PersonalRecord
+from app.models import Exercise, PersonalRecord, WorkoutSession, WorkoutSet
 from app.schemas.analytics import (
     E1RMPoint,
     ExerciseSeries,
     PersonalRecordRead,
     PredictionRead,
     RecentPRRead,
+    RelativeStrengthLift,
+    RelativeStrengthRead,
     SummaryRead,
     TonnageBucket,
 )
 from app.services import analytics as svc
+from app.services import strength_standards
+from app.services.bodyweight import latest_weight
 from app.services.exercises import get_exercise
 from app.services.user_settings import get_settings
 
@@ -46,6 +50,50 @@ async def recent_prs(
         RecentPRRead(**PersonalRecordRead.model_validate(pr).model_dump(), exercise_name=name)
         for pr, name in rows
     ]
+
+
+@router.get("/relative-strength", response_model=RelativeStrengthRead)
+async def relative_strength(db: AsyncSession = Depends(get_db)):
+    """Current best e1RM ÷ bodyweight per trained lift, with a strength tier."""
+    settings = await get_settings(db)
+    bodyweight = await latest_weight(db)
+
+    exercise_ids = (
+        await db.scalars(
+            select(WorkoutSet.exercise_id)
+            .join(WorkoutSession, WorkoutSet.session_id == WorkoutSession.id)
+            .where(WorkoutSet.is_warmup.is_(False))
+            .distinct()
+        )
+    ).all()
+
+    lifts: list[RelativeStrengthLift] = []
+    for exercise_id in sorted(exercise_ids):
+        exercise = await db.get(Exercise, exercise_id)
+        if exercise is None:
+            continue
+        series = await svc.e1rm_series(db, exercise_id, settings.e1rm_formula)
+        if not series:
+            continue
+        best = max(value for _, value in series)
+        ratio = round(best / bodyweight, 2) if bodyweight else None
+        tier = (
+            strength_standards.classify(exercise.name, settings.sex, best, bodyweight)
+            if bodyweight
+            else None
+        )
+        lifts.append(
+            RelativeStrengthLift(
+                exercise_id=exercise_id,
+                exercise_name=exercise.name,
+                e1rm=round(best, 1),
+                ratio=ratio,
+                tier=tier,
+            )
+        )
+
+    lifts.sort(key=lambda lift: lift.ratio or 0, reverse=True)
+    return RelativeStrengthRead(bodyweight=bodyweight, lifts=lifts)
 
 
 @router.get("/tonnage", response_model=list[TonnageBucket])

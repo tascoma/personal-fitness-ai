@@ -9,6 +9,7 @@ const TREND_RED = '#f87171'
 export function StatCard({
   label,
   value,
+  valueText,
   suffix,
   unit,
   trend,
@@ -17,6 +18,8 @@ export function StatCard({
 }: {
   label: string
   value: number
+  /** Renders this instead of the animated number (e.g. a decimal ratio). */
+  valueText?: string
   suffix?: string
   unit?: string
   /** Percent change; renders a colored ↑/↓ line when provided. */
@@ -50,8 +53,8 @@ export function StatCard({
           lineHeight: 1,
         }}
       >
-        <AnimNum target={value} />
-        {suffix}
+        {valueText != null ? valueText : <AnimNum target={value} />}
+        {valueText == null && suffix}
       </div>
       {unit && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>{unit}</div>}
       {trend != null && (

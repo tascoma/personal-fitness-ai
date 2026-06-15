@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Exercise, PersonalRecord, WorkoutSession, WorkoutSet
 from app.schemas.ai import LiftTarget
+from app.services import strength_standards
 from app.services.analytics import (
     detect_deload,
     detect_plateau,
@@ -18,9 +19,32 @@ from app.services.analytics import (
     summary_stats,
     tonnage_buckets,
 )
+from app.services.bodyweight import latest_weight
 from app.services.e1rm import pick
-from app.services.user_settings import get_settings
+from app.services.user_settings import compute_age, get_settings
 from app.services.workout_sessions import get_session
+
+
+async def profile_context(db: AsyncSession) -> dict:
+    """Athlete profile injected into every coach prompt for personalization."""
+    settings = await get_settings(db)
+    return {
+        "height_cm": settings.height_cm,
+        "age": compute_age(settings.birth_date),
+        "sex": settings.sex,
+        "training_goal": settings.training_goal,
+        "bodyweight_lbs": await latest_weight(db),
+    }
+
+
+def _relative_strength(exercise_name: str, sex: str | None, e1rm: float, bodyweight: float | None) -> dict:
+    """Per-lift bodyweight ratio + tier for a coach prompt (null-safe)."""
+    if not bodyweight:
+        return {"bw_ratio": None, "tier": None}
+    return {
+        "bw_ratio": round(e1rm / bodyweight, 2),
+        "tier": strength_standards.classify(exercise_name, sex, e1rm, bodyweight),
+    }
 
 
 def _rep_scheme(working_sets: list[WorkoutSet], top_weight: float) -> str:
@@ -31,6 +55,7 @@ def _rep_scheme(working_sets: list[WorkoutSet], top_weight: float) -> str:
 
 async def session_metrics(db: AsyncSession, session_id: int) -> dict:
     session = await get_session(db, session_id)
+    profile = await profile_context(db)
     formula = (await get_settings(db)).e1rm_formula
 
     working = [s for s in session.sets if not s.is_warmup]
@@ -72,6 +97,7 @@ async def session_metrics(db: AsyncSession, session_id: int) -> dict:
                 "prs_achieved": [
                     {"type": pr.record_type, "value": pr.value} for pr in prs_today
                 ],
+                **_relative_strength(exercise.name, profile["sex"], best_today, profile["bodyweight_lbs"]),
             }
         )
 
@@ -81,6 +107,7 @@ async def session_metrics(db: AsyncSession, session_id: int) -> dict:
         "notes": session.notes,
         "tonnage": sum(s.weight * s.reps for s in working),
         "e1rm_formula": formula,
+        "profile": profile,
         "lifts": lifts,
     }
 
@@ -149,6 +176,7 @@ async def recommendation_targets(db: AsyncSession, as_of: date_type) -> list[Lif
 
 async def weekly_metrics(db: AsyncSession, as_of: date_type) -> dict:
     """Cross-lift metrics for the ISO week containing `as_of`."""
+    profile = await profile_context(db)
     formula = (await get_settings(db)).e1rm_formula
     iso = as_of.isocalendar()
     week_key = f"{iso.year}-W{iso.week:02d}"
@@ -187,15 +215,21 @@ async def weekly_metrics(db: AsyncSession, as_of: date_type) -> dict:
             )
             .limit(1)
         )
+        best_week = max(week_values) if week_values else None
         lifts.append(
             {
                 "exercise": exercise.name,
                 "week_tonnage": this_week,
                 "prior_4wk_avg_tonnage": prior_avg,
-                "best_e1rm_this_week": round(max(week_values), 1) if week_values else None,
+                "best_e1rm_this_week": round(best_week, 1) if best_week else None,
                 "hit_pr": pr_count is not None,
                 "plateau": detect_plateau(series, as_of),
                 "deload_suggested": detect_deload(series),
+                **(
+                    _relative_strength(exercise.name, profile["sex"], best_week, profile["bodyweight_lbs"])
+                    if best_week
+                    else {"bw_ratio": None, "tier": None}
+                ),
             }
         )
 
@@ -212,6 +246,7 @@ async def weekly_metrics(db: AsyncSession, as_of: date_type) -> dict:
         "week": week_key,
         "sessions": session_count,
         "e1rm_formula": formula,
+        "profile": profile,
         "lifts": lifts,
     }
 
@@ -219,6 +254,7 @@ async def weekly_metrics(db: AsyncSession, as_of: date_type) -> dict:
 async def dashboard_metrics(db: AsyncSession, as_of: date_type) -> dict:
     """High-level "state of training" payload: all-time/weekly summary, the top
     progressive-overload targets, and the most recent PRs."""
+    profile = await profile_context(db)
     summary = await summary_stats(db, as_of)
     targets = await recommendation_targets(db, as_of)
 
@@ -232,6 +268,7 @@ async def dashboard_metrics(db: AsyncSession, as_of: date_type) -> dict:
     ).all()
 
     return {
+        "profile": profile,
         "summary": summary.__dict__,
         "top_targets": [
             {

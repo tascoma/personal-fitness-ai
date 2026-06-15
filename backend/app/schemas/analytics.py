@@ -28,6 +28,19 @@ class RecentPRRead(PersonalRecordRead):
     exercise_name: str
 
 
+class RelativeStrengthLift(BaseModel):
+    exercise_id: int
+    exercise_name: str
+    e1rm: float
+    ratio: float | None  # e1rm / bodyweight; null when bodyweight unknown
+    tier: str | None
+
+
+class RelativeStrengthRead(BaseModel):
+    bodyweight: float | None  # lbs; null when no bodyweight logged
+    lifts: list[RelativeStrengthLift]
+
+
 class SummaryRead(BaseModel):
     total_sessions: int
     total_tonnage: float

@@ -1,4 +1,4 @@
-import type { Exercise, ExerciseSeries, LiftTarget } from '../../api/types'
+import type { Exercise, ExerciseSeries, LiftTarget, RelativeStrengthLift } from '../../api/types'
 import { AnimNum, Sparkline } from '../charts'
 import { Card, Pill } from '../ui'
 import { convertWeight } from '../../lib/units'
@@ -12,6 +12,7 @@ export function HeroLiftCard({
   exercise,
   series,
   target,
+  rel,
   unit,
   accent,
   selected,
@@ -20,6 +21,7 @@ export function HeroLiftCard({
   exercise: Exercise
   series?: ExerciseSeries
   target?: LiftTarget
+  rel?: RelativeStrengthLift
   unit: 'lbs' | 'kg'
   accent: string
   selected: boolean
@@ -82,6 +84,12 @@ export function HeroLiftCard({
         {plateau && <Pill variant="hold">plateau</Pill>}
         {deload && <Pill variant="deload">deload</Pill>}
       </div>
+      {rel?.ratio != null && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, position: 'relative', zIndex: 2 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>{rel.ratio.toFixed(2)}× BW</span>
+          {rel.tier && <Pill variant="e1rm">{rel.tier}</Pill>}
+        </div>
+      )}
       <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, opacity: 0.5 }}>
         <Sparkline data={points.map((p) => ({ v: p.e1rm }))} color={isPr ? accent : '#22d3ee'} h={44} />
       </div>
