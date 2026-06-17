@@ -24,3 +24,10 @@ logs/*
 # Uploads
 uploads/*
 !uploads/.gitkeep
+
+# iOS / Xcode
+ios/DerivedData/
+ios/*.xcodeproj/
+ios/*.xcworkspace/xcuserdata/
+ios/build/
+.DS_Store
