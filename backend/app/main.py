@@ -39,6 +39,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.get("/health")
+async def health() -> dict[str, str]:
+    """Liveness probe for Render's health check."""
+    return {"status": "ok"}
+
 from app.routes.ai import router as ai_router  # noqa: E402
 from app.routes.analytics import router as analytics_router  # noqa: E402
 from app.routes.bodyweight import router as bodyweight_router  # noqa: E402
