@@ -1,0 +1,40 @@
+export class ApiError extends Error {
+  status: number
+
+  constructor(status: number, message: string) {
+    super(message)
+    this.status = status
+  }
+}
+
+// In production, Render injects VITE_API_URL (the backend's URL) at build time.
+// In local dev it is unset, so requests stay relative and hit the Vite proxy.
+const API_BASE = import.meta.env.VITE_API_URL ?? ''
+
+async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const response = await fetch(`${API_BASE}/api${path}`, {
+    headers: { 'Content-Type': 'application/json' },
+    ...options,
+  })
+  if (!response.ok) {
+    let detail = response.statusText
+    try {
+      const body = await response.json()
+      if (typeof body.detail === 'string') detail = body.detail
+    } catch {
+      // non-JSON error body; keep statusText
+    }
+    throw new ApiError(response.status, detail)
+  }
+  if (response.status === 204) return undefined as T
+  return response.json()
+}
+
+export const api = {
+  get: <T>(path: string) => request<T>(path),
+  post: <T>(path: string, body: unknown) =>
+    request<T>(path, { method: 'POST', body: JSON.stringify(body) }),
+  patch: <T>(path: string, body: unknown) =>
+    request<T>(path, { method: 'PATCH', body: JSON.stringify(body) }),
+  delete: (path: string) => request<void>(path, { method: 'DELETE' }),
+}

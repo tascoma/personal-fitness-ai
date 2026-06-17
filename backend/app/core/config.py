@@ -1,4 +1,8 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings
+
+_REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 class Settings(BaseSettings):
@@ -13,10 +17,11 @@ class Settings(BaseSettings):
     supabase_service_role_key: str
     storage_bucket: str = "uploads"
     anthropic_api_key: str
-    anthropic_model: str = "claude-sonnet-4-6"
+    anthropic_model: str = "claude-haiku-4-5-20251001"
     log_level: str = "INFO"
 
-    model_config = {"env_file": "../.env"}
+    # Anchored to the repo root so imports work from any working directory.
+    model_config = {"env_file": _REPO_ROOT / ".env"}
 
 
 settings = Settings()
