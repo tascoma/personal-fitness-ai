@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: personal-fitness-ai
+    name: personal-fitness-ai-prod
     env: docker
     plan: free
     branch: main

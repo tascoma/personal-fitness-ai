@@ -7,8 +7,8 @@ export class ApiError extends Error {
   }
 }
 
-// In production, Render injects VITE_API_URL (the backend's URL) at build time.
-// In local dev it is unset, so requests stay relative and hit the Vite proxy.
+// Single-service deploy: FastAPI serves the built frontend, so requests stay
+// relative and hit the same origin. In local dev they hit the Vite proxy.
 const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
