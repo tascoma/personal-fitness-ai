@@ -2,7 +2,7 @@ services:
   - type: web
     name: personal-fitness-ai
     env: docker
-    plan: starter
+    plan: free
     branch: main
     healthCheckPath: /health
     envVars:
@@ -32,7 +32,7 @@ services:
   - type: web
     name: personal-fitness-ai-stage
     env: docker
-    plan: starter
+    plan: free
     branch: dev
     healthCheckPath: /health
     envVars:
