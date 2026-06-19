@@ -1,0 +1,58 @@
+services:
+  - type: web
+    name: personal-fitness-ai
+    env: docker
+    plan: starter
+    branch: main
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      # Supabase Postgres connection string (Session/Transaction pooler URL).
+      - key: DATABASE_URL
+        sync: false
+      # Supabase project URL + service-role key for storage and admin access.
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: STORAGE_BUCKET
+        value: uploads
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ANTHROPIC_MODEL
+        value: claude-haiku-4-5-20251001
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: LOG_LEVEL
+        value: INFO
+
+  - type: web
+    name: personal-fitness-ai-stage
+    env: docker
+    plan: starter
+    branch: dev
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: staging
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: STORAGE_BUCKET
+        value: uploads
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ANTHROPIC_MODEL
+        value: claude-haiku-4-5-20251001
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: LOG_LEVEL
+        value: INFO
