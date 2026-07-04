@@ -1,7 +1,9 @@
 services:
   - type: web
-    name: personal-fitness-ai-prod
+    name: personal-fitness-ai-backend
     env: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: ./
     plan: free
     branch: main
     healthCheckPath: /health
@@ -10,6 +12,8 @@ services:
         value: production
       - key: SECRET_KEY
         generateValue: true
+      - key: ALLOWED_ORIGINS
+        value: https://personal-fitness-ai-frontend.onrender.com
       # Supabase Postgres connection string (Session/Transaction pooler URL).
       - key: DATABASE_URL
         sync: false
@@ -24,14 +28,14 @@ services:
         sync: false
       - key: ANTHROPIC_MODEL
         value: claude-haiku-4-5-20251001
-      - key: ALLOWED_ORIGINS
-        sync: false
       - key: LOG_LEVEL
         value: INFO
 
   - type: web
-    name: personal-fitness-ai-stage
+    name: personal-fitness-ai-backend-staging
     env: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: ./
     plan: free
     branch: dev
     healthCheckPath: /health
@@ -40,6 +44,8 @@ services:
         value: staging
       - key: SECRET_KEY
         generateValue: true
+      - key: ALLOWED_ORIGINS
+        value: https://personal-fitness-ai-frontend-staging.onrender.com
       - key: DATABASE_URL
         sync: false
       - key: SUPABASE_URL
@@ -52,7 +58,27 @@ services:
         sync: false
       - key: ANTHROPIC_MODEL
         value: claude-haiku-4-5-20251001
-      - key: ALLOWED_ORIGINS
-        sync: false
       - key: LOG_LEVEL
-        value: INFO
+        value: DEBUG
+
+  - type: web
+    name: personal-fitness-ai-frontend
+    env: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    branch: main
+    envVars:
+      - key: VITE_API_URL
+        value: https://personal-fitness-ai-backend.onrender.com
+
+  - type: web
+    name: personal-fitness-ai-frontend-staging
+    env: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    branch: dev
+    envVars:
+      - key: VITE_API_URL
+        value: https://personal-fitness-ai-backend-staging.onrender.com

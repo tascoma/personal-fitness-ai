@@ -8,54 +8,14 @@ Template for building a React + FastAPI web app with a Pydantic-AI agent backend
 - **Test before closing.** Run or write a test for every change before reporting it done.
 - **Follow best practices.** Match the conventions and patterns already in the codebase. When in doubt, prefer the idiomatic approach for the language or framework in use.
 
-## Tech stack
-
-- **React** — web frontend UI (`frontend/`); Vite dev server proxies `/api/*` to `http://localhost:8000`
-- **Swift / SwiftUI** — iOS app (`ios/`)
-- **FastAPI** — async web framework with dependency injection (`backend/`); run with `uv run python -m app.main` from `backend/`
-- **Pydantic v2** — request/response schemas and settings (`BaseSettings`); run tests with `uv run pytest` from `backend/`
-- **Pydantic-AI** — agent framework for structured LLM interactions; `backend/app/agents/agent.py` is a working example
-- **SQLAlchemy 2.0** — async ORM (`backend/app/databases/`); not pre-installed — add with `uv add sqlalchemy asyncpg` when setting up the database
-- **Alembic** — database schema migrations (`backend/alembic/`); not pre-installed — add via `/add-migration` skill, migrations live in `backend/alembic/versions/`
-- **Supabase** — hosted PostgreSQL database and blob storage; connection URL goes in `DATABASE_URL`, storage wired via `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`
-- **Render** — hosting platform; backend as a Web Service, frontend as a Static Site
-- **Python stdlib `logging`** — configured in `backend/app/core/logging.py`
-- **uv** — package manager and virtual environment tool (replaces pip + venv)
-- **Python ≥ 3.12** — enforced via `.python-version`
-
-## Project structure
-
-```
-agent-webapp-template/
-├── .env.example             # env var shape (.env is gitignored)
-├── pyproject.toml           # project dependencies
-├── skills/                  # task playbooks (see below)
-├── frontend/                # React web app
-├── ios/                     # Swift iOS app
-└── backend/
-    ├── app/
-    │   ├── main.py          # FastAPI app, routers, lifespan, CORS
-    │   ├── core/            # config.py, logging.py
-    │   ├── databases/       # async engine, session factory, Base
-    │   ├── dependencies/    # Depends() factories
-    │   ├── routes/          # one APIRouter per resource
-    │   ├── models/          # SQLAlchemy ORM models
-    │   ├── schemas/         # Pydantic request/response schemas
-    │   ├── agents/          # Pydantic-AI agent definitions
-    │   └── services/        # business logic
-    ├── alembic/             # database migrations (populated by /add-migration)
-    ├── tests/
-    ├── logs/                # runtime output (gitignored)
-    └── uploads/             # user uploads (gitignored)
-```
-
 ## Skills
 
-Invoke these for step-by-step procedures:
+Invoke these for step-by-step procedures. Each skill lives in `skills/<name>/SKILL.md`.
 
 | Skill | When to use |
 |---|---|
-| `/setup` | First-time project bootstrap: venv, env, settings, logging, database, main.py |
+| `/setup` | First-time project bootstrap: venv, env, settings, logging, database, main.py (also documents the tech stack and project structure) |
+| `/run-dev` | Run the backend and frontend locally together with hot reload |
 | `/add-resource` | Add a full CRUD resource: model, schema, dep, service, router, tests |
 | `/add-agent` | Add a new Pydantic-AI agent with tools and dependency wiring |
 | `/setup-supabase` | Connect the app to a Supabase PostgreSQL database |
@@ -68,18 +28,11 @@ Invoke these for step-by-step procedures:
 | `/setup-storage` | Set up Supabase Storage for file uploads |
 | `/add-auth` | Add Supabase Auth: JWT verification, `current_user` dependency, protected routes, frontend and iOS auth flow |
 | `/add-migration` | Set up Alembic and manage schema migrations |
+| `/seed-database` | Write and run idempotent seed scripts for reference or test data |
 | `/setup-frontend` | Wire up the React app: API client, env config, routing, auth state |
 | `/add-frontend-feature` | Add a page or feature to the React frontend |
 | `/add-tests` | Set up the pytest suite and write tests for a route module |
+| `/test-frontend` | Set up Vitest + React Testing Library and write frontend tests |
+| `/test-agent` | Test Pydantic-AI agents in isolation by stubbing the model |
 | `/setup-ci` | Add GitHub Actions for CI and auto-deploy to Render |
-
-## Branches and environments
-
-| Branch | Environment | Database |
-|---|---|---|
-| `main` | Production (Render prod services) | Supabase prod project |
-| `dev` | Staging (Render staging services) | Supabase staging project |
-| `feature/*` | Local only | Local or staging DB |
-
-Never commit directly to `main` or `dev`. All work starts on a feature branch cut from `dev`, goes to `dev` via PR, then to `main` via PR when ready to ship.
-
+| `/sync-skills` | Sync this repo's skills with the upstream template |
