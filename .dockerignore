@@ -13,11 +13,8 @@
 **/*.pyo
 **/*.pyd
 
-# Frontend build artifacts (rebuilt inside the image)
-frontend/node_modules/
-frontend/dist/
-frontend/.vite/
-frontend/coverage/
+# Frontend deploys separately as its own Render static site
+frontend/
 
 # Local-only data and logs
 .env
