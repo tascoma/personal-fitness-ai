@@ -61,23 +61,21 @@ services:
       - key: LOG_LEVEL
         value: DEBUG
 
-  - type: web
-    name: personal-fitness-ai-frontend
+  - name: personal-fitness-ai-frontend
     env: static
     rootDir: frontend
     buildCommand: npm ci && npm run build
-    staticPublishPath: dist
+    publishPath: dist
     branch: main
     envVars:
       - key: VITE_API_URL
         value: https://personal-fitness-ai-backend.onrender.com
 
-  - type: web
-    name: personal-fitness-ai-frontend-staging
+  - name: personal-fitness-ai-frontend-staging
     env: static
     rootDir: frontend
     buildCommand: npm ci && npm run build
-    staticPublishPath: dist
+    publishPath: dist
     branch: dev
     envVars:
       - key: VITE_API_URL
